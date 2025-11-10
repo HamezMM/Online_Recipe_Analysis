@@ -1,0 +1,204 @@
+{
+  "name": "Analyze Recipes",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://api.spoonacular.com/recipes/extract",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.url }}"
+            },
+            {
+              "name": "forceExtraction",
+              "value": "true"
+            },
+            {
+              "name": "apiKey",
+              "value": "apiKey"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        320,
+        -48
+      ],
+      "id": "f5b337d7-3b5e-4407-ae65-f60ce8a09f92",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "7FXZy0vkLDEDlnDE",
+          "name": "SpoonacularAPI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "httpPath",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -128,
+        -48
+      ],
+      "id": "dca85c8b-967c-4f8f-807a-54df95760709",
+      "name": "Webhook",
+      "webhookId": "httpPath"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://943a1b23-ff4d-4f22-aa7a-8c8d48b6236b.lovableproject.com"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        992,
+        -48
+      ],
+      "id": "dc9784c0-3cbb-4360-b5ee-5bdd333c9844",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the input data (it's an array with one recipe object)\nconst data = $input.item.json;\n\n// Get the first recipe from the array\nconst recipe = Array.isArray(data) ? data[0] : data;\n\n// Access the extendedIngredients array\nconst ingredients = recipe.extendedIngredients || [];\n\n// Map through each ingredient and extract the data\nreturn ingredients.map(ingredient => {\n  // Clean the ingredient name by removing parentheses\n  let ingredientName = ingredient.nameClean || ingredient.name || '';\n  if (ingredientName) {\n    ingredientName = ingredientName.replace(/[()]/g, '').trim();\n  }\n  \n  return {\n    json: {\n      ingredientName: ingredientName,\n      amount: ingredient.amount || 0,\n      unit: ingredient.unit || '',\n      originalText: ingredient.original || '',\n      id: ingredient.id,\n      aisle: ingredient.aisle || ''\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        -48
+      ],
+      "id": "a0a587c5-1bfe-4cb0-b87d-8a3305e12422",
+      "name": "Extract Ingredients & Quanities"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all the ingredient items\nconst ingredients = $input.all();\n\n// Extract just the ingredient names into an array\nconst ingredientList = ingredients.map(item => item.json.ingredientName);\n\n// Return as a single item with the list\nreturn {\n  ingredientList: ingredientList\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        -48
+      ],
+      "id": "4c242a4e-d5e1-41f3-81cc-7dee6f2a91b9",
+      "name": "List all Ingredients",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the HTTP request data\nconst data = $input.item.json;\n\n// Safely extract the URL from the body\nconst url = data.body?.url || '';\n\n// Validate it's actually a URL\nif (!url) {\n  throw new Error('No URL provided in request body');\n}\n\nreturn {\n  json: {\n    url: url\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -48
+      ],
+      "id": "6916c28f-92de-4421-af99-f288bba408de",
+      "name": "Get Recipe URL"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Ingredients & Quanities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Recipe URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Ingredients & Quanities": {
+      "main": [
+        [
+          {
+            "node": "List all Ingredients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List all Ingredients": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recipe URL": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "17137b3b-3b08-43ee-9780-dbb50b7c01ef",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f3b02e238f5862c73af8e5d98e05ef8d0c1544e7dd7a395aafc7932706cd7132"
+  },
+  "id": "Yo9oCWfSCPntQIr1",
+  "tags": []
+}
